@@ -5,158 +5,189 @@
 
 namespace Nano
 {
-
-template <typename RT, typename MT_Policy = ST_Policy>
-class Signal;
-template <typename RT, typename MT_Policy, typename... Args>
-class Signal<RT(Args...), MT_Policy> final : public Observer<MT_Policy>
-{
-    using observer = Observer<MT_Policy>;
-    using function = Function<RT(Args...)>;
-
-    template <typename T>
-    void insert_sfinae(Delegate_Key const& key, typename T::Observer* instance)
+    template<typename RT, typename MT_Policy = ST_Policy>
+    class Signal;
+    template<typename RT, typename MT_Policy, typename... Args>
+    class Signal<RT(Args...), MT_Policy> final : public Observer<MT_Policy>
     {
-        observer::insert(key, instance);
-        instance->insert(key, this);
-    }
-    template <typename T>
-    void remove_sfinae(Delegate_Key const& key, typename T::Observer* instance)
-    {
-        observer::remove(key);
-        instance->remove(key);
-    }
-    template <typename T>
-    void insert_sfinae(Delegate_Key const& key, ...)
-    {
-        observer::insert(key, this);
-    }
-    template <typename T>
-    void remove_sfinae(Delegate_Key const& key, ...)
-    {
-        observer::remove(key);
-    }
+        using SignalType = Signal<RT(Args...), MT_Policy>;
 
     public:
- 
-    //-------------------------------------------------------------------CONNECT
+        class Handler
+        {
+            friend class SignalType;
 
-    template <typename L>
-    void connect(L* instance)
-    {
-        observer::insert(function::template bind(instance), this);
-    }
-    template <typename L>
-    void connect(L& instance)
-    {
-        connect(std::addressof(instance));
-    }
+        public:
+            auto& GetSignal()
+            {
+                return m_signal;
+            }
 
-    template <RT(*fun_ptr)(Args...)>
-    void connect()
-    {
-        observer::insert(function::template bind<fun_ptr>(), this);
-    }
+            template<typename... Uref>
+            void Emit(Uref&&... args)
+            {
+                m_signal.fire(std::forward<Uref>(args)...);
+            }
 
-    template <typename T, RT(T::*mem_ptr)(Args...)>
-    void connect(T* instance)
-    {
-        insert_sfinae<T>(function::template bind<mem_ptr>(instance), instance);
-    }
-    template <typename T, RT(T::*mem_ptr)(Args...) const>
-    void connect(T* instance)
-    {
-        insert_sfinae<T>(function::template bind<mem_ptr>(instance), instance);
-    }
+            void ClearSignal()
+            {
+                m_signal.disconnect_all();
+            }
 
-    template <typename T, RT(T::*mem_ptr)(Args...)>
-    void connect(T& instance)
-    {
-        connect<mem_ptr, T>(std::addressof(instance));
-    }
-    template <typename T, RT(T::*mem_ptr)(Args...) const>
-    void connect(T& instance)
-    {
-        connect<mem_ptr, T>(std::addressof(instance));
-    }
+            bool IsEmpty() const
+            {
+                return m_signal.IsEmpty();
+            }
 
-    template <auto mem_ptr, typename T>
-    void connect(T* instance)
-    {
-        insert_sfinae<T>(function::template bind<mem_ptr>(instance), instance);
-    }
-    template <auto mem_ptr, typename T>
-    void connect(T& instance)
-    {
-        connect<mem_ptr, T>(std::addressof(instance));
-    }
+        private:
+            SignalType m_signal;
+        };
 
-    //----------------------------------------------------------------DISCONNECT
+    private:
+        using observer = Observer<MT_Policy>;
+        using function = Function<RT(Args...)>;
 
-    template <typename L>
-    void disconnect(L* instance)
-    {
-        observer::remove(function::template bind(instance));
-    }
-    template <typename L>
-    void disconnect(L& instance)
-    {
-        disconnect(std::addressof(instance));
-    }
+        template<typename T>
+        void insert_sfinae(Delegate_Key const& key, typename T::Observer* instance)
+        {
+            observer::insert(key, instance);
+            instance->insert(key, this);
+        }
+        template<typename T>
+        void remove_sfinae(Delegate_Key const& key, typename T::Observer* instance)
+        {
+            observer::remove(key);
+            instance->remove(key);
+        }
+        template<typename T>
+        void insert_sfinae(Delegate_Key const& key, ...)
+        {
+            observer::insert(key, this);
+        }
+        template<typename T>
+        void remove_sfinae(Delegate_Key const& key, ...)
+        {
+            observer::remove(key);
+        }
 
-    template <RT(*fun_ptr)(Args...)>
-    void disconnect()
-    {
-        observer::remove(function::template bind<fun_ptr>());
-    }
+    public:
+        //-------------------------------------------------------------------CONNECT
 
-    template <typename T, RT(T::*mem_ptr)(Args...)>
-    void disconnect(T* instance)
-    {
-        remove_sfinae<T>(function::template bind<mem_ptr>(instance), instance);
-    }
-    template <typename T, RT(T::*mem_ptr)(Args...) const>
-    void disconnect(T* instance)
-    {
-        remove_sfinae<T>(function::template bind<mem_ptr>(instance), instance);
-    }
+        template<typename L>
+        void Connect(L* instance)
+        {
+            observer::insert(function::template bind(instance), this);
+        }
+        template<typename L>
+        void Connect(L& instance)
+        {
+            Connect(std::addressof(instance));
+        }
 
-    template <typename T, RT(T::*mem_ptr)(Args...)>
-    void disconnect(T& instance)
-    {
-        disconnect<T, mem_ptr>(std::addressof(instance));
-    }
-    template <typename T, RT(T::*mem_ptr)(Args...) const>
-    void disconnect(T& instance)
-    {
-        disconnect<T, mem_ptr>(std::addressof(instance));
-    }
+        template<RT (*fun_ptr)(Args...)>
+        void Connect()
+        {
+            observer::insert(function::template bind<fun_ptr>(), this);
+        }
 
-    template <auto mem_ptr, typename T>
-    void disconnect(T* instance)
-    {
-        remove_sfinae<T>(function::template bind<mem_ptr>(instance), instance);
-    }
-    template <auto mem_ptr, typename T>
-    void disconnect(T& instance)
-    {
-        disconnect<mem_ptr, T>(std::addressof(instance));
-    }
+        template<typename T, RT (T::*mem_ptr)(Args...)>
+        void Connect(T* instance)
+        {
+            insert_sfinae<T>(function::template bind<mem_ptr>(instance), instance);
+        }
+        template<typename T, RT (T::*mem_ptr)(Args...) const>
+        void Connect(T* instance)
+        {
+            insert_sfinae<T>(function::template bind<mem_ptr>(instance), instance);
+        }
 
-    //----------------------------------------------------FIRE / FIRE ACCUMULATE
+        template<typename T, RT (T::*mem_ptr)(Args...)>
+        void Connect(T& instance)
+        {
+            Connect<mem_ptr, T>(std::addressof(instance));
+        }
+        template<typename T, RT (T::*mem_ptr)(Args...) const>
+        void Connect(T& instance)
+        {
+            Connect<mem_ptr, T>(std::addressof(instance));
+        }
 
-    template <typename... Uref>
-    void fire(Uref&&... args)
-    {
-        observer::template for_each<function>(std::forward<Uref>(args)...);
-    }
+        template<auto mem_ptr, typename T>
+        void Connect(T* instance)
+        {
+            insert_sfinae<T>(function::template bind<mem_ptr>(instance), instance);
+        }
+        template<auto mem_ptr, typename T>
+        void Connect(T& instance)
+        {
+            Connect<mem_ptr, T>(std::addressof(instance));
+        }
 
-    template <typename Accumulate, typename... Uref>
-    void fire_accumulate(Accumulate&& accumulate, Uref&&... args)
-    {
-        observer::template for_each_accumulate<function, Accumulate>
-            (std::forward<Accumulate>(accumulate), std::forward<Uref>(args)...);
-    }
-};
+        //----------------------------------------------------------------DISCONNECT
 
-} // namespace Nano ------------------------------------------------------------
+        template<typename L>
+        void Disconnect(L* instance)
+        {
+            observer::remove(function::template bind(instance));
+        }
+        template<typename L>
+        void Disconnect(L& instance)
+        {
+            Disconnect(std::addressof(instance));
+        }
+
+        template<RT (*fun_ptr)(Args...)>
+        void Disconnect()
+        {
+            observer::remove(function::template bind<fun_ptr>());
+        }
+
+        template<typename T, RT (T::*mem_ptr)(Args...)>
+        void Disconnect(T* instance)
+        {
+            remove_sfinae<T>(function::template bind<mem_ptr>(instance), instance);
+        }
+        template<typename T, RT (T::*mem_ptr)(Args...) const>
+        void Disconnect(T* instance)
+        {
+            remove_sfinae<T>(function::template bind<mem_ptr>(instance), instance);
+        }
+
+        template<typename T, RT (T::*mem_ptr)(Args...)>
+        void Disconnect(T& instance)
+        {
+            Disconnect<T, mem_ptr>(std::addressof(instance));
+        }
+        template<typename T, RT (T::*mem_ptr)(Args...) const>
+        void Disconnect(T& instance)
+        {
+            Disconnect<T, mem_ptr>(std::addressof(instance));
+        }
+
+        template<auto mem_ptr, typename T>
+        void Disconnect(T* instance)
+        {
+            remove_sfinae<T>(function::template bind<mem_ptr>(instance), instance);
+        }
+        template<auto mem_ptr, typename T>
+        void Disconnect(T& instance)
+        {
+            Disconnect<mem_ptr, T>(std::addressof(instance));
+        }
+
+        //----------------------------------------------------FIRE / FIRE ACCUMULATE
+
+    private:
+        template<typename... Uref>
+        void fire(Uref&&... args)
+        {
+            observer::template for_each<function>(std::forward<Uref>(args)...);
+        }
+
+        template<typename Accumulate, typename... Uref>
+        void fire_accumulate(Accumulate&& accumulate, Uref&&... args)
+        {
+            observer::template for_each_accumulate<function, Accumulate>(std::forward<Accumulate>(accumulate), std::forward<Uref>(args)...);
+        }
+    };
+} // namespace Nano

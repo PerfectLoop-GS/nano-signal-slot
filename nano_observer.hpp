@@ -99,22 +99,7 @@ class Observer : private MT_Policy
     //--------------------------------------------------------------------------
 
     public:
-
-    void disconnect_all() noexcept
-    {
-        [[maybe_unused]] auto lock = MT_Policy::lock_guard();
-
-        for (auto const& slot : connections)
-        {
-            if (auto observer = MT_Policy::visiting(slot.observer))
-            {
-                static_cast<Observer*>(MT_Policy::unmask(observer))->remove(slot.delegate);
-            }
-        }
-        connections.clear();
-    }
-
-    bool is_empty() const noexcept
+    bool IsEmpty() const noexcept
     {
         auto lock = MT_Policy::lock_guard();
 
@@ -135,6 +120,20 @@ class Observer : private MT_Policy
     Observer() noexcept = default;
     Observer(Observer const&) = delete;
     Observer& operator= (Observer const&) = delete;
+
+    void disconnect_all() noexcept
+    {
+        [[maybe_unused]] auto lock = MT_Policy::lock_guard();
+
+        for (auto const& slot : connections)
+        {
+            if (auto observer = MT_Policy::visiting(slot.observer))
+            {
+                static_cast<Observer*>(MT_Policy::unmask(observer))->remove(slot.delegate);
+            }
+        }
+        connections.clear();
+    }
 };
 
 } // namespace Nano ------------------------------------------------------------
